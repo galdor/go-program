@@ -155,6 +155,10 @@ func (p *Program) parseArguments(args []string, arguments []*Argument) []string 
 				p.fatal("too many arguments")
 			}
 		}
+	} else {
+		if len(args) > 0 {
+			p.fatal("unexpected arguments")
+		}
 	}
 
 	return args
