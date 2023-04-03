@@ -13,12 +13,19 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
 # IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-all: test vet
+BIN_DIR = $(CURDIR)/bin
 
-test:
-	go test ./...
+all: build
+
+build:
+	GOBIN=$(BIN_DIR) go install $(CURDIR)/...
+
+check: vet
 
 vet:
-	go vet ./...
+	go vet $(CURDIR)/...
 
-.PHONY: all test vet
+test:
+	go test $(CURDIR)/...
+
+.PHONY: all build check vet test
