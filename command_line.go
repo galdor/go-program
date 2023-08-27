@@ -96,7 +96,7 @@ func (p *Program) addOption(c *Command, option *Option) {
 	var m map[string]*Option
 
 	if option.ShortName == "" && option.LongName == "" {
-		panic("command has no short or long name")
+		panic("option has no short or long name")
 	}
 
 	if c == nil {
