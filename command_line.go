@@ -285,6 +285,15 @@ func (p *Program) ArgumentValue(name string) string {
 	return p.mustArgument(name).Value
 }
 
+func (p *Program) OptionalArgumentValue(name string) *string {
+	arg := p.mustArgument(name)
+	if !arg.Set {
+		return nil
+	}
+
+	return &arg.Value
+}
+
 func (p *Program) TrailingArgumentValues(name string) []string {
 	return p.mustArgument(name).TrailingValues
 }
