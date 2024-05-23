@@ -17,8 +17,9 @@ const (
 )
 
 type Table struct {
-	Columns []TableColumn
-	Rows    [][]interface{}
+	Columns     []TableColumn
+	Rows        [][]interface{}
+	PrintHeader bool
 }
 
 type TableColumn struct {
@@ -28,8 +29,19 @@ type TableColumn struct {
 
 func NewTable() *Table {
 	return &Table{
-		Rows: make([][]interface{}, 0),
+		Rows:        make([][]interface{}, 0),
+		PrintHeader: true,
 	}
+}
+
+func NewKeyValueTable() *Table {
+	t := NewTable()
+	t.PrintHeader = false
+
+	t.AddColumn(TableColumn{})
+	t.AddColumn(TableColumn{})
+
+	return t
 }
 
 func (t *Table) AddColumn(c TableColumn) {
@@ -46,7 +58,7 @@ func (t *Table) Print() {
 	rows := t.Render()
 	widths := t.columnWidths(rows)
 
-	if isTerminal {
+	if t.PrintHeader && isTerminal {
 		for i, c := range t.Columns {
 			if i > 0 {
 				fmt.Fprintf(os.Stderr, "  ")
