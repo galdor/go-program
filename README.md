@@ -5,9 +5,8 @@ Compared to the standard `flag` package, go-program uses the same conventions
 than most UNIX programs.
 
 ## Usage
-Refer to the [Go package
-documentation](https://pkg.go.dev/github.com/galdor/go-program) for
-information about the API.
+Refer to the [Go package documentation](https://pkg.go.dev/go.n16f.net/program)
+for information about the API.
 
 See the [`cmd/examples` directory](cmd/examples) for examples.
 
