@@ -201,7 +201,7 @@ func (p *Program) usageOptions(buf *bytes.Buffer, label string, options map[stri
 		fmt.Fprintf(buf, "%-*s  %s", maxWidth, strs[opt], opt.Description)
 
 		if opt.DefaultValue != "" {
-			fmt.Fprintf(buf, " (default: %s)", opt.DefaultValue)
+			fmt.Fprintf(buf, " (default: %q)", opt.DefaultValue)
 		}
 
 		fmt.Fprintf(buf, "\n")
