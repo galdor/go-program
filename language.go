@@ -1,13 +1,8 @@
 package program
 
 import (
-	"fmt"
 	"unicode"
 )
-
-func panicf(format string, args ...interface{}) {
-	panic(fmt.Sprintf(format, args...))
-}
 
 func sentence(s string) string {
 	if s == "" {
