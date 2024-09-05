@@ -107,12 +107,12 @@ func (p *Program) addOption(c *Command, option *Option) {
 
 	if option.ShortName != "" {
 		if _, found := m[option.ShortName]; found {
-			Panicf("duplicate option name %q", option.ShortName)
+			Panic("duplicate option name %q", option.ShortName)
 		}
 
 		if c != nil {
 			if _, found := c.program.options[option.ShortName]; found {
-				Panicf("duplicate option name %q", option.ShortName)
+				Panic("duplicate option name %q", option.ShortName)
 			}
 		}
 
@@ -121,12 +121,12 @@ func (p *Program) addOption(c *Command, option *Option) {
 
 	if option.LongName != "" {
 		if _, found := m[option.LongName]; found {
-			Panicf("duplicate option name %q", option.LongName)
+			Panic("duplicate option name %q", option.LongName)
 		}
 
 		if c != nil {
 			if _, found := c.program.options[option.LongName]; found {
-				Panicf("duplicate option name %q", option.LongName)
+				Panic("duplicate option name %q", option.LongName)
 			}
 		}
 
@@ -246,7 +246,7 @@ func checkForTrailingArgument(args []*Argument) {
 
 func (p *Program) CommandName() string {
 	if len(p.commands) == 0 {
-		Panicf("no command defined")
+		Panic("no command defined")
 	}
 
 	return p.command.Name
@@ -275,7 +275,7 @@ func (p *Program) mustOption(name string) *Option {
 
 	option, found := p.options[name]
 	if !found {
-		Panicf("unknown option %q", name)
+		Panic("unknown option %q", name)
 	}
 
 	return option
@@ -313,7 +313,7 @@ func (p *Program) mustArgument(name string) *Argument {
 		}
 	}
 
-	Panicf("unknown argument %q", name)
+	Panic("unknown argument %q", name)
 	return nil // make the compiler happy
 }
 
