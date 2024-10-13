@@ -31,11 +31,7 @@ func (p *Program) parse() {
 func (p *Program) parseOptions(args []string, options map[string]*Option) []string {
 	for len(args) > 0 {
 		arg := args[0]
-
-		isShort := len(arg) == 2 && arg[0] == '-' && arg[1] != '-'
-		isLong := len(arg) > 2 && arg[0:2] == "--"
-
-		if arg == "--" || !(isShort || isLong) {
+		if arg == "--" || !isOption(arg) {
 			break
 		}
 
@@ -43,7 +39,7 @@ func (p *Program) parseOptions(args []string, options map[string]*Option) []stri
 
 		opt, found := options[key]
 		if !found {
-			p.fatal("unknown option %q", key)
+			p.Fatal("unknown option %q", key)
 		}
 
 		opt.Set = true
@@ -52,7 +48,7 @@ func (p *Program) parseOptions(args []string, options map[string]*Option) []stri
 			args = args[1:]
 		} else {
 			if len(args) < 2 {
-				p.fatal("missing value for option %q", key)
+				p.Fatal("missing value for option %q", key)
 			}
 
 			opt.Value = args[1]
@@ -68,17 +64,21 @@ func (p *Program) parseCommand(args []string) []string {
 	p.selectedCommand = p.command
 
 	if len(args) == 0 {
-		p.fatal("missing command")
+		p.Fatal("missing command")
 	}
 
 	cmd := p.command
-	fullName := []string{}
+	names := []string{}
 
 	for len(args) > 0 {
-		name := args[0]
-		fullName = append(fullName, name)
+		arg := args[0]
+		if arg == "--" || isOption(arg) {
+			break
+		}
 
-		cmd2 := cmd.subcommands[name]
+		names = append(names, arg)
+
+		cmd2 := cmd.subcommands[arg]
 		if cmd2 == nil {
 			if cmd != nil {
 				break
@@ -91,12 +91,14 @@ func (p *Program) parseCommand(args []string) []string {
 		args = args[1:]
 	}
 
+	fullName := strings.Join(names, " ")
+
 	if cmd == nil || cmd == p.command {
-		p.fatal("unknown command %q", strings.Join(fullName, " "))
+		p.Fatal("unknown command %q", fullName)
 	}
 
 	if len(cmd.subcommands) > 0 {
-		p.fatal("missing subcommand(s)")
+		p.Fatal("missing subcommand(s) for command %q", fullName)
 	}
 
 	p.selectedCommand = cmd
@@ -117,7 +119,7 @@ func (p *Program) parseArguments(args []string, arguments []*Argument) []string 
 		}
 
 		if len(args) < min {
-			p.fatal("missing argument(s)")
+			p.Fatal("missing argument(s)")
 		}
 
 		for i := 0; i < min; i++ {
@@ -155,14 +157,26 @@ func (p *Program) parseArguments(args []string, arguments []*Argument) []string 
 			args = args[len(args):]
 		} else {
 			if len(args) > 0 {
-				p.fatal("too many arguments")
+				p.Fatal("too many arguments")
 			}
 		}
 	} else {
 		if len(args) > 0 {
-			p.fatal("unexpected arguments")
+			p.Fatal("unexpected arguments")
 		}
 	}
 
 	return args
+}
+
+func isOption(arg string) bool {
+	return isShortOption(arg) || isLongOption(arg)
+}
+
+func isShortOption(arg string) bool {
+	return len(arg) == 2 && arg[0] == '-' && arg[1] != '-'
+}
+
+func isLongOption(arg string) bool {
+	return len(arg) > 2 && arg[0] == '-' && arg[1] == '-'
 }

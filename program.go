@@ -82,13 +82,3 @@ func (p *Program) Fatal(format string, args ...interface{}) {
 	p.Error(format, args...)
 	os.Exit(1)
 }
-
-func (p *Program) fatal(format string, args ...interface{}) {
-	p.Error(format, args...)
-
-	fmt.Fprintf(os.Stderr, "\n")
-
-	p.PrintUsage(p.selectedCommand)
-
-	os.Exit(1)
-}
