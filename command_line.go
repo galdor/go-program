@@ -426,7 +426,7 @@ func (p *Program) ParseCommandLine() {
 		s := p.OptionValue("debug")
 		i, err := strconv.ParseInt(s, 10, 64)
 		if err != nil || i < 0 || i > math.MaxInt32 {
-			p.fatal("invalid debug level %v", s)
+			p.Fatal("invalid debug level %q", s)
 		}
 
 		p.DebugLevel = int(i)
