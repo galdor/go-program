@@ -1,7 +1,6 @@
 package program
 
 import (
-	"fmt"
 	"math"
 	"os"
 	"strconv"
@@ -350,34 +349,28 @@ func (p *Program) addDefaultOptions() {
 
 func (p *Program) addDefaultCommands() {
 	c := p.AddCommand("help", "print help and exit", cmdHelp)
-	c.AddTrailingArgument("command", "the name of the command(s)")
+	c.AddOptionalArgument("command", "the name of the command")
 }
 
 func cmdHelp(p *Program) {
-	var commandNames []string
+	var commandName *string
 	if p.command != nil {
 		if p.command.Name == "help" {
-			commandNames = p.TrailingArgumentValues("command")
+			commandName = p.OptionalArgumentValue("command")
 		} else {
-			commandNames = append(commandNames, p.command.Name)
+			commandName = &p.command.Name
 		}
 	}
 
-	if len(commandNames) == 0 {
+	if commandName == nil {
 		p.PrintUsage(nil)
 	} else {
-		for i, commandName := range commandNames {
-			if i > 0 {
-				fmt.Fprintf(os.Stderr, "\n\n")
-			}
-
-			command, found := p.commands[commandName]
-			if !found {
-				p.Error("unknown command %q", commandName)
-				os.Exit(1)
-			}
-
-			p.PrintUsage(command)
+		command, found := p.commands[*commandName]
+		if !found {
+			p.Error("unknown command %q", *commandName)
+			os.Exit(1)
 		}
+
+		p.PrintUsage(command)
 	}
 }
