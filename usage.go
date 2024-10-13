@@ -12,12 +12,12 @@ import (
 )
 
 func (p *Program) PrintUsage(cmd *Command) {
-	var buf bytes.Buffer
+	// The logic here is convoluted. The "cmd" parameter is nil if the program
+	// has no commands, but is the top-level empty command (p.command) if the
+	// program has commands but usage is about the program and not a command.
+	// Ugly.
 
-	programName := os.Args[0]
-	if cmd != nil && cmd.FullName != "" {
-		programName += " " + cmd.FullName
-	}
+	var buf bytes.Buffer
 
 	var hasCommands bool
 	var commands map[string]*Command
@@ -38,12 +38,33 @@ func (p *Program) PrintUsage(cmd *Command) {
 	}
 
 	hasArguments := len(arguments) > 0
+
 	maxWidth := p.computeMaxWidth(cmd)
 
-	fmt.Fprintf(&buf, "Usage: %s OPTIONS", programName)
+	partialCommand := cmd != nil && cmd.FullName != ""
+
+	fmt.Fprintf(&buf, "Usage: %s", os.Args[0])
+
+	if cmd == nil {
+		fmt.Fprintf(&buf, " [OPTIONS]")
+	} else {
+		fmt.Fprintf(&buf, " [GLOBAL OPTIONS]")
+	}
+
+	if partialCommand {
+		fmt.Fprintf(&buf, " %s", cmd.FullName)
+	}
 
 	if hasCommands && !hasArguments {
-		fmt.Fprintf(&buf, " <command>...")
+		if partialCommand {
+			fmt.Fprintf(&buf, " SUBCOMMAND...")
+		} else {
+			fmt.Fprintf(&buf, " COMMAND...")
+		}
+	}
+
+	if cmd != nil && cmd.Name != "" && hasArguments && len(cmd.options) > 0 {
+		fmt.Fprintf(&buf, " [COMMAND OPTIONS]")
 	}
 
 	if hasArguments {
@@ -65,16 +86,21 @@ func (p *Program) PrintUsage(cmd *Command) {
 	}
 
 	if hasCommands {
-		p.usageCommands(&buf, commands, maxWidth)
+		label := "COMMANDS"
+		if partialCommand {
+			label = "SUBCOMMANDS"
+		}
+
+		p.usageCommands(&buf, label, commands, maxWidth)
 	} else if hasArguments {
 		p.usageArguments(&buf, arguments, maxWidth)
 	}
 
 	if len(p.options) > 0 {
-		if cmd != nil && len(cmd.options) > 0 {
-			p.usageOptions(&buf, "GLOBAL OPTIONS", p.options, maxWidth)
-		} else {
+		if cmd == nil {
 			p.usageOptions(&buf, "OPTIONS", p.options, maxWidth)
+		} else {
+			p.usageOptions(&buf, "GLOBAL OPTIONS", p.options, maxWidth)
 		}
 	}
 
@@ -133,8 +159,8 @@ func (p *Program) computeMaxWidth(cmd *Command) int {
 	return max
 }
 
-func (p *Program) usageCommands(buf *bytes.Buffer, commands map[string]*Command, maxWidth int) {
-	fmt.Fprintf(buf, "\nCOMMANDS\n\n")
+func (p *Program) usageCommands(buf *bytes.Buffer, label string, commands map[string]*Command, maxWidth int) {
+	fmt.Fprintf(buf, "\n%s\n\n", label)
 
 	names := maps.Keys(commands)
 	slices.Sort(names)
