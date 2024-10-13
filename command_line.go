@@ -447,7 +447,9 @@ func (p *Program) addDefaultCommands() {
 func cmdHelp(p *Program) {
 	cmd := p.command
 
-	if p.selectedCommand != nil {
+	if p.selectedCommand == nil {
+		p.PrintUsage(p.command)
+	} else {
 		names := p.TrailingArgumentValues("command")
 		if len(names) > 0 {
 			cmd = p.findCommand(names)
@@ -458,8 +460,6 @@ func cmdHelp(p *Program) {
 
 		p.PrintUsage(cmd)
 	}
-
-	p.PrintUsage(p.command)
 }
 
 func splitCommandName(s string) []string {
