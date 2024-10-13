@@ -12,11 +12,11 @@ type Program struct {
 	Description string
 	Main        Main
 
-	commands  map[string]*Command
+	command   *Command
 	options   map[string]*Option
 	arguments []*Argument
 
-	command *Command
+	selectedCommand *Command
 
 	Quiet      bool
 	DebugLevel int
@@ -27,8 +27,6 @@ func NewProgram(name, description string) *Program {
 		Name:        name,
 		Description: description,
 
-		commands: make(map[string]*Command),
-
 		options: make(map[string]*Option),
 	}
 
@@ -38,7 +36,7 @@ func NewProgram(name, description string) *Program {
 }
 
 func (p *Program) SetMain(main Main) {
-	if len(p.commands) > 0 {
+	if p.command != nil {
 		panic("cannot have a main function with commands")
 	}
 
@@ -47,14 +45,14 @@ func (p *Program) SetMain(main Main) {
 
 func (p *Program) Run() {
 	var main Main
-	if p.command == nil {
+	if p.selectedCommand == nil {
 		if p.Main == nil {
 			panic("missing main function")
 		}
 
 		main = p.Main
 	} else {
-		main = p.command.Main
+		main = p.selectedCommand.Main
 	}
 
 	main(p)
@@ -90,11 +88,7 @@ func (p *Program) fatal(format string, args ...interface{}) {
 
 	fmt.Fprintf(os.Stderr, "\n")
 
-	if p.command == nil {
-		p.PrintUsage(nil)
-	} else {
-		p.PrintUsage(p.command)
-	}
+	p.PrintUsage(p.selectedCommand)
 
 	os.Exit(1)
 }

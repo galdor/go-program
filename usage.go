@@ -5,96 +5,102 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
+
+	"golang.org/x/exp/maps"
 )
 
-func (p *Program) PrintUsage(command *Command) {
+func (p *Program) PrintUsage(cmd *Command) {
 	var buf bytes.Buffer
 
-	var programName string
-	if command == nil {
-		programName = os.Args[0]
-	} else {
-		programName = os.Args[0] + " " + command.Name
+	programName := os.Args[0]
+	if cmd != nil && cmd.FullName != "" {
+		programName += " " + cmd.FullName
 	}
 
-	hasCommands := len(p.commands) > 0
+	var hasCommands bool
+	var commands map[string]*Command
+	if cmd != nil {
+		hasCommands = len(cmd.subcommands) > 0
+		commands = cmd.subcommands
+	}
 
 	var arguments []*Argument
 	var description string
 
-	if command == nil {
+	if cmd == nil {
 		arguments = p.arguments
 		description = p.Description
 	} else {
-		arguments = command.arguments
-		description = command.Description
+		arguments = cmd.arguments
+		description = cmd.Description
 	}
 
 	hasArguments := len(arguments) > 0
+	maxWidth := p.computeMaxWidth(cmd)
 
-	maxWidth := p.computeMaxWidth(command)
+	fmt.Fprintf(&buf, "Usage: %s OPTIONS", programName)
 
-	if command == nil && hasCommands {
-		fmt.Fprintf(&buf, "Usage: %s OPTIONS <command>\n", programName)
-	} else if hasArguments {
-		var argBuf bytes.Buffer
+	if hasCommands && !hasArguments {
+		fmt.Fprintf(&buf, " <command>...")
+	}
 
+	if hasArguments {
 		for _, arg := range arguments {
 			if arg.Trailing {
-				fmt.Fprintf(&argBuf, " [<%s>...]", arg.Name)
+				fmt.Fprintf(&buf, " [<%s>...]", arg.Name)
 			} else if arg.Optional {
-				fmt.Fprintf(&argBuf, " [<%s>]", arg.Name)
+				fmt.Fprintf(&buf, " [<%s>]", arg.Name)
 			} else {
-				fmt.Fprintf(&argBuf, " <%s>", arg.Name)
+				fmt.Fprintf(&buf, " <%s>", arg.Name)
 			}
 		}
-
-		fmt.Fprintf(&buf, "Usage: %s OPTIONS%s\n", programName,
-			argBuf.String())
-	} else {
-		fmt.Fprintf(&buf, "Usage: %s OPTIONS\n", programName)
 	}
+
+	fmt.Fprintf(&buf, "\n")
 
 	if description != "" {
 		fmt.Fprintf(&buf, "\n%s\n", sentence(description))
 	}
 
-	if command == nil && hasCommands {
-		p.usageCommands(&buf, maxWidth)
+	if hasCommands {
+		p.usageCommands(&buf, commands, maxWidth)
 	} else if hasArguments {
 		p.usageArguments(&buf, arguments, maxWidth)
 	}
 
 	if len(p.options) > 0 {
-		if command != nil && len(command.options) > 0 {
+		if cmd != nil && len(cmd.options) > 0 {
 			p.usageOptions(&buf, "GLOBAL OPTIONS", p.options, maxWidth)
 		} else {
 			p.usageOptions(&buf, "OPTIONS", p.options, maxWidth)
 		}
 	}
 
-	if command != nil && len(command.options) > 0 {
-		p.usageOptions(&buf, "COMMAND OPTIONS", command.options, maxWidth)
+	if cmd != nil && len(cmd.options) > 0 {
+		p.usageOptions(&buf, "COMMAND OPTIONS", cmd.options, maxWidth)
 	}
 
 	io.Copy(os.Stderr, &buf)
 }
 
-func (p *Program) computeMaxWidth(command *Command) int {
+func (p *Program) computeMaxWidth(cmd *Command) int {
 	max := 0
 
-	for _, cmd := range p.commands {
-		if len(cmd.Name) > max {
-			max = len(cmd.Name)
+	if cmd != nil {
+		for _, subcmd := range cmd.subcommands {
+			if label := subcmd.Label(); len(label) > max {
+				max = len(label)
+			}
 		}
 	}
 
 	var args []*Argument
-	if command == nil {
+	if cmd == nil {
 		args = p.arguments
 	} else {
-		args = command.arguments
+		args = cmd.arguments
 	}
 
 	for _, arg := range args {
@@ -118,8 +124,8 @@ func (p *Program) computeMaxWidth(command *Command) int {
 		f(opt)
 	}
 
-	if command != nil {
-		for _, opt := range command.options {
+	if cmd != nil {
+		for _, opt := range cmd.options {
 			f(opt)
 		}
 	}
@@ -127,20 +133,15 @@ func (p *Program) computeMaxWidth(command *Command) int {
 	return max
 }
 
-func (p *Program) usageCommands(buf *bytes.Buffer, maxWidth int) {
+func (p *Program) usageCommands(buf *bytes.Buffer, commands map[string]*Command, maxWidth int) {
 	fmt.Fprintf(buf, "\nCOMMANDS\n\n")
 
-	names := []string{}
-
-	for name := range p.commands {
-		names = append(names, name)
-	}
-
-	sort.Strings(names)
+	names := maps.Keys(commands)
+	slices.Sort(names)
 
 	for _, name := range names {
-		command := p.commands[name]
-		fmt.Fprintf(buf, "%-*s  %s\n", maxWidth, name, command.Description)
+		cmd := commands[name]
+		fmt.Fprintf(buf, "%-*s  %s\n", maxWidth, cmd.Label(), cmd.Description)
 	}
 }
 

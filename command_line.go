@@ -3,18 +3,43 @@ package program
 import (
 	"math"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 )
+
+var commandNameRE = regexp.MustCompile("\\s+")
 
 type Command struct {
 	Name        string
+	FullName    string
 	Description string
 	Main        Main
 
 	program *Program
 
-	options   map[string]*Option
-	arguments []*Argument
+	subcommands map[string]*Command
+	options     map[string]*Option
+	arguments   []*Argument
+}
+
+func (p *Program) newCommandGroup(name, fullName string) *Command {
+	return &Command{
+		Name:     name,
+		FullName: fullName,
+
+		program: p,
+
+		subcommands: make(map[string]*Command),
+	}
+}
+
+func (c *Command) Label() string {
+	if len(c.subcommands) == 0 {
+		return c.Name
+	}
+
+	return c.Name + " <subcommand>..."
 }
 
 type Option struct {
@@ -39,13 +64,43 @@ type Argument struct {
 	TrailingValues []string
 }
 
-func (p *Program) AddCommand(name, description string, main Main) *Command {
+func (p *Program) AddCommand(fullName, description string, main Main) *Command {
 	if p.Main != nil {
 		panic("cannot have a main function with commands")
 	}
 
-	c := &Command{
+	names := splitCommandName(fullName)
+	if len(names) == 0 {
+		panic("empty command name")
+	}
+
+	if p.command == nil {
+		p.command = p.newCommandGroup("", "")
+	}
+
+	group := p.command
+
+	for i := range len(names) - 1 {
+		name := names[i]
+
+		if group.subcommands == nil {
+			group.subcommands = make(map[string]*Command)
+		}
+
+		group2 := group.subcommands[name]
+		if group2 == nil {
+			group2 = p.newCommandGroup(name, strings.Join(names[:i+1], " "))
+			group.subcommands[name] = group2
+		}
+
+		group = group2
+	}
+
+	name := names[len(names)-1]
+
+	cmd := Command{
 		Name:        name,
+		FullName:    strings.Join(names, " "),
 		Description: description,
 		Main:        main,
 
@@ -54,9 +109,21 @@ func (p *Program) AddCommand(name, description string, main Main) *Command {
 		options: make(map[string]*Option),
 	}
 
-	p.commands[name] = c
+	if cmd := group.subcommands[name]; cmd != nil {
+		if len(cmd.subcommands) == 0 {
+			Panic("duplicate command %q", cmd.FullName)
+		} else {
+			Panic("command %q has subcommands", cmd.FullName)
+		}
+	}
 
-	return c
+	if group.Main != nil {
+		Panic("command %q cannot be used as a group", group.FullName)
+	}
+
+	group.subcommands[name] = &cmd
+
+	return &cmd
 }
 
 func (p *Program) AddOption(shortName, longName, valueName, defaultValue, description string) {
@@ -244,11 +311,19 @@ func checkForTrailingArgument(args []*Argument) {
 }
 
 func (p *Program) CommandName() string {
-	if len(p.commands) == 0 {
+	if p.command == nil {
 		Panic("no command defined")
 	}
 
-	return p.command.Name
+	return p.selectedCommand.Name
+}
+
+func (p *Program) CommandFullName() string {
+	if p.command == nil {
+		Panic("no command defined")
+	}
+
+	return p.selectedCommand.FullName
 }
 
 func (p *Program) IsOptionSet(name string) bool {
@@ -265,8 +340,8 @@ func (p *Program) OptionValue(name string) string {
 }
 
 func (p *Program) mustOption(name string) *Option {
-	if p.command != nil {
-		option, found := p.command.options[name]
+	if cmd := p.selectedCommand; cmd != nil {
+		option, found := cmd.options[name]
 		if found {
 			return option
 		}
@@ -300,10 +375,10 @@ func (p *Program) TrailingArgumentValues(name string) []string {
 func (p *Program) mustArgument(name string) *Argument {
 	var arguments []*Argument
 
-	if p.command == nil {
+	if cmd := p.selectedCommand; cmd == nil {
 		arguments = p.arguments
 	} else {
-		arguments = p.command.arguments
+		arguments = cmd.arguments
 	}
 
 	for _, argument := range arguments {
@@ -316,8 +391,25 @@ func (p *Program) mustArgument(name string) *Argument {
 	return nil // make the compiler happy
 }
 
+func (p *Program) findCommand(names []string) *Command {
+	cmd := p.command
+
+	for _, name := range names {
+		cmd = cmd.subcommands[name]
+		if cmd == nil {
+			return nil
+		}
+	}
+
+	if cmd == p.command {
+		return nil
+	}
+
+	return cmd
+}
+
 func (p *Program) ParseCommandLine() {
-	if len(p.commands) > 0 {
+	if p.command != nil {
 		p.addDefaultCommands()
 	}
 
@@ -349,28 +441,41 @@ func (p *Program) addDefaultOptions() {
 
 func (p *Program) addDefaultCommands() {
 	c := p.AddCommand("help", "print help and exit", cmdHelp)
-	c.AddOptionalArgument("command", "the name of the command")
+	c.AddTrailingArgument("command", "the name of the command")
 }
 
 func cmdHelp(p *Program) {
-	var commandName *string
-	if p.command != nil {
-		if p.command.Name == "help" {
-			commandName = p.OptionalArgumentValue("command")
-		} else {
-			commandName = &p.command.Name
+	cmd := p.command
+
+	if p.selectedCommand != nil {
+		names := p.TrailingArgumentValues("command")
+		if len(names) > 0 {
+			cmd = p.findCommand(names)
+			if cmd == nil {
+				p.Fatal("unknown command %q", strings.Join(names, " "))
+			}
+		}
+
+		p.PrintUsage(cmd)
+	}
+
+	p.PrintUsage(p.command)
+}
+
+func splitCommandName(s string) []string {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return []string{}
+	}
+
+	parts := commandNameRE.Split(s, -1)
+
+	var names []string
+	for _, part := range parts {
+		if name := strings.TrimSpace(part); name != "" {
+			names = append(names, name)
 		}
 	}
 
-	if commandName == nil {
-		p.PrintUsage(nil)
-	} else {
-		command, found := p.commands[*commandName]
-		if !found {
-			p.Error("unknown command %q", *commandName)
-			os.Exit(1)
-		}
-
-		p.PrintUsage(command)
-	}
+	return names
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 
 	"go.n16f.net/program"
 )
@@ -31,19 +31,15 @@ func main() {
 }
 
 func main2(p *program.Program) {
-	fmt.Printf("flag-a: %v\n", p.IsOptionSet("flag-a"))
-	fmt.Printf("b: %v\n", p.IsOptionSet("b"))
-	fmt.Printf("option-c: %s\n", p.OptionValue("option-c"))
-
-	fmt.Printf("arg-1: %s\n", p.ArgumentValue("arg-1"))
-	fmt.Printf("arg-2: %s\n", p.ArgumentValue("arg-2"))
-
-	fmt.Printf("arg-opt-1: %s\n", p.ArgumentValue("arg-opt-1"))
-	fmt.Printf("arg-opt-2: %s\n", p.ArgumentValue("arg-opt-2"))
-
-	fmt.Printf("arg-trailing:")
-	for _, value := range p.TrailingArgumentValues("arg-trailing") {
-		fmt.Printf(" %s", value)
-	}
-	fmt.Printf("\n")
+	t := program.NewKeyValueTable()
+	t.AddRow("flag-a", p.IsOptionSet("flag-a"))
+	t.AddRow("b", p.IsOptionSet("b"))
+	t.AddRow("option-c", p.OptionValue("option-c"))
+	t.AddRow("arg-1", p.ArgumentValue("arg-1"))
+	t.AddRow("arg-2", p.ArgumentValue("arg-2"))
+	t.AddRow("arg-opt-1", p.ArgumentValue("arg-opt-1"))
+	t.AddRow("arg-opt-2", p.ArgumentValue("arg-opt-2"))
+	t.AddRow("arg-trailing",
+		strings.Join(p.TrailingArgumentValues("arg-trailing"), " "))
+	t.Print()
 }

@@ -1,35 +1,30 @@
 package program
 
 import (
+	"maps"
 	"os"
 	"strings"
 )
 
 func (p *Program) parse() {
-	args := os.Args[1:]
-
-	args = p.parseOptions(args, p.options)
+	args := p.parseOptions(os.Args[1:], p.options)
 
 	if p.IsOptionSet("help") {
 		return
 	}
 
-	if len(p.commands) > 0 {
+	if p.command == nil {
+		args = p.parseArguments(args, p.arguments)
+	} else {
 		args = p.parseCommand(args)
 
 		options := make(map[string]*Option)
-		for name, opt := range p.options {
-			options[name] = opt
-		}
-		for name, opt := range p.command.options {
-			options[name] = opt
-		}
+		maps.Copy(options, p.options)
+		maps.Copy(options, p.selectedCommand.options)
 
 		args = p.parseOptions(args, options)
 
-		args = p.parseArguments(args, p.command.arguments)
-	} else {
-		args = p.parseArguments(args, p.arguments)
+		args = p.parseArguments(args, p.selectedCommand.arguments)
 	}
 }
 
@@ -70,20 +65,43 @@ func (p *Program) parseOptions(args []string, options map[string]*Option) []stri
 }
 
 func (p *Program) parseCommand(args []string) []string {
+	p.selectedCommand = p.command
+
 	if len(args) == 0 {
 		p.fatal("missing command")
 	}
 
-	name := args[0]
+	cmd := p.command
+	fullName := []string{}
 
-	command, found := p.commands[name]
-	if !found {
-		p.fatal("unknown command %q", name)
+	for len(args) > 0 {
+		name := args[0]
+		fullName = append(fullName, name)
+
+		cmd2 := cmd.subcommands[name]
+		if cmd2 == nil {
+			if cmd != nil {
+				break
+			}
+
+			break
+		}
+
+		cmd = cmd2
+		args = args[1:]
 	}
 
-	p.command = command
+	if cmd == nil || cmd == p.command {
+		p.fatal("unknown command %q", strings.Join(fullName, " "))
+	}
 
-	return args[1:]
+	if len(cmd.subcommands) > 0 {
+		p.fatal("missing subcommand(s)")
+	}
+
+	p.selectedCommand = cmd
+
+	return args
 }
 
 func (p *Program) parseArguments(args []string, arguments []*Argument) []string {
