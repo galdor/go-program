@@ -1,1 +1,4 @@
-/bin/
+/bin/*
+!/bin/.empty
+/go.work
+/go.work.sum

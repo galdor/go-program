@@ -1,9 +1,7 @@
-BIN_DIR = $(CURDIR)/bin
-
 all: build
 
 build:
-	GOBIN=$(BIN_DIR) go install $(CURDIR)/...
+	go build -o bin/ $(CURDIR)/...
 
 check: vet
 
