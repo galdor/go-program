@@ -70,8 +70,6 @@ func (p *Program) parseCommand(args []string) []string {
 	cmd := p.command
 	names := []string{}
 
-	var unknownCommand bool
-
 	for len(args) > 0 {
 		arg := args[0]
 		if arg == "--" || isOption(arg) {
@@ -82,7 +80,6 @@ func (p *Program) parseCommand(args []string) []string {
 
 		cmd2 := cmd.subcommands[arg]
 		if cmd2 == nil {
-			unknownCommand = true
 			break
 		}
 
@@ -92,12 +89,16 @@ func (p *Program) parseCommand(args []string) []string {
 
 	fullName := strings.Join(names, " ")
 
-	if unknownCommand {
+	if cmd == p.command {
 		p.Fatal("unknown command %q", fullName)
 	}
 
-	if len(cmd.subcommands) > 0 {
-		p.Fatal("missing subcommand(s) for command %q", fullName)
+	if cmd.Main == nil {
+		if len(args) == 0 {
+			p.Fatal("missing subcommand(s) for command %q", cmd.FullName)
+		} else {
+			p.Fatal("unknown command %q", strings.Join(names, " "))
+		}
 	}
 
 	p.selectedCommand = cmd
