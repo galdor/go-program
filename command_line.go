@@ -447,19 +447,21 @@ func (p *Program) addDefaultCommands() {
 func cmdHelp(p *Program) {
 	cmd := p.command
 
-	if p.selectedCommand == nil {
-		p.PrintUsage(p.command)
-	} else {
-		names := p.TrailingArgumentValues("command")
-		if len(names) > 0 {
-			cmd = p.findCommand(names)
-			if cmd == nil {
-				p.Fatal("unknown command %q", strings.Join(names, " "))
+	if p.selectedCommand != nil {
+		if p.selectedCommand.FullName == "help" && !p.IsOptionSet("help") {
+			names := p.TrailingArgumentValues("command")
+			if len(names) > 0 {
+				cmd = p.findCommand(names)
+				if cmd == nil {
+					p.Fatal("unknown command %q", strings.Join(names, " "))
+				}
 			}
+		} else {
+			cmd = p.selectedCommand
 		}
-
-		p.PrintUsage(cmd)
 	}
+
+	p.PrintUsage(cmd)
 }
 
 func splitCommandName(s string) []string {

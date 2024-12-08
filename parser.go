@@ -24,6 +24,12 @@ func (p *Program) parse() {
 
 		args = p.parseOptions(args, options)
 
+		isHelpCommand := p.selectedCommand != nil &&
+			p.selectedCommand.FullName == "help"
+		if p.IsOptionSet("help") && !isHelpCommand {
+			return
+		}
+
 		args = p.parseArguments(args, p.selectedCommand.arguments)
 	}
 }
