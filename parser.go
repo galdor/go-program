@@ -103,7 +103,9 @@ func (p *Program) parseCommand(args []string) []string {
 		if len(args) == 0 {
 			p.Fatal("missing subcommand(s) for command %q", cmd.FullName)
 		} else {
-			p.Fatal("unknown command %q", strings.Join(names, " "))
+			if args[0] != "-h" {
+				p.Fatal("unknown command %q", strings.Join(names, " "))
+			}
 		}
 	}
 
