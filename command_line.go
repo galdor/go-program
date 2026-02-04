@@ -339,6 +339,21 @@ func (p *Program) OptionValue(name string) string {
 	return opt.Value
 }
 
+func (p *Program) BooleanOptionValue(name string) bool {
+	value := p.OptionValue(name)
+
+	switch strings.ToLower(value) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+
+	p.Fatal("invalid boolean value %q for option %q: must be either %q or %q",
+		value, name, "true", "false")
+	return false // make the Go compiler happy
+}
+
 func (p *Program) mustOption(name string) *Option {
 	if cmd := p.selectedCommand; cmd != nil {
 		option, found := cmd.options[name]
