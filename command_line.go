@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"go.n16f.net/uuid"
 )
 
 var commandNameRE = regexp.MustCompile("\\s+")
@@ -340,18 +342,11 @@ func (p *Program) OptionValue(name string) string {
 }
 
 func (p *Program) BooleanOptionValue(name string) bool {
-	value := p.OptionValue(name)
+	return p.booleanValue("option", name, p.OptionValue(name))
+}
 
-	switch strings.ToLower(value) {
-	case "true":
-		return true
-	case "false":
-		return false
-	}
-
-	p.Fatal("invalid boolean value %q for option %q: must be either %q or %q",
-		value, name, "true", "false")
-	return false // make the Go compiler happy
+func (p *Program) UUIDOptionValue(name string) uuid.UUID {
+	return p.uuidValue("option", name, p.OptionValue(name))
 }
 
 func (p *Program) mustOption(name string) *Option {
@@ -372,6 +367,37 @@ func (p *Program) mustOption(name string) *Option {
 
 func (p *Program) ArgumentValue(name string) string {
 	return p.mustArgument(name).Value
+}
+
+func (p *Program) BooleanArgumentValue(name string) bool {
+	return p.booleanValue("argument", name, p.ArgumentValue(name))
+}
+
+func (p *Program) UUIDArgumentValue(name string) uuid.UUID {
+	return p.uuidValue("argument", name, p.ArgumentValue(name))
+}
+
+func (p *Program) booleanValue(typeName, name, value string) bool {
+	switch strings.ToLower(value) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+
+	p.Fatal("invalid value %q for %s %q: must be either %q or %q",
+		value, typeName, name, "true", "false")
+	return false // make the Go compiler happy
+}
+
+func (p *Program) uuidValue(typeName, name, value string) uuid.UUID {
+	var id uuid.UUID
+	if err := id.Parse(value); err != nil {
+		p.Fatal("invalid value %q for %s %q: must be a valid UUID",
+			value, typeName, name)
+	}
+
+	return id
 }
 
 func (p *Program) OptionalArgumentValue(name string) *string {
