@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.n16f.net/uuid"
 )
@@ -345,6 +346,10 @@ func (p *Program) BooleanOptionValue(name string) bool {
 	return p.booleanValue("option", name, p.OptionValue(name))
 }
 
+func (p *Program) RFC3339DatetimeOptionValue(name string) time.Time {
+	return p.rfc3339DatetimeValue("option", name, p.OptionValue(name))
+}
+
 func (p *Program) UUIDOptionValue(name string) uuid.UUID {
 	return p.uuidValue("option", name, p.OptionValue(name))
 }
@@ -373,6 +378,10 @@ func (p *Program) BooleanArgumentValue(name string) bool {
 	return p.booleanValue("argument", name, p.ArgumentValue(name))
 }
 
+func (p *Program) RFC3339DatetimeArgumentValue(name string) time.Time {
+	return p.rfc3339DatetimeValue("argument", name, p.OptionValue(name))
+}
+
 func (p *Program) UUIDArgumentValue(name string) uuid.UUID {
 	return p.uuidValue("argument", name, p.ArgumentValue(name))
 }
@@ -388,6 +397,16 @@ func (p *Program) booleanValue(typeName, name, value string) bool {
 	p.Fatal("invalid value %q for %s %q: must be either %q or %q",
 		value, typeName, name, "true", "false")
 	return false // make the Go compiler happy
+}
+
+func (p *Program) rfc3339DatetimeValue(typeName, name, value string) time.Time {
+	t, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		p.Fatal("invalid value %q for %s %q: must be a valid RFC3339 datetime",
+			value, typeName, name)
+	}
+
+	return t
 }
 
 func (p *Program) uuidValue(typeName, name, value string) uuid.UUID {
