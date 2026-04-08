@@ -1,6 +1,8 @@
 package program
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"os"
 	"regexp"
@@ -346,6 +348,24 @@ func (p *Program) BooleanOptionValue(name string) bool {
 	return p.booleanValue("option", name, p.OptionValue(name))
 }
 
+func (p *Program) IntegerOptionValue(name string) int64 {
+	return p.integerValue("option", name, p.OptionValue(name),
+		math.MinInt64, math.MaxInt64)
+}
+
+func (p *Program) IntegerOptionValue2(name string, min, max int64) int64 {
+	return p.integerValue("option", name, p.OptionValue(name), min, max)
+}
+
+func (p *Program) FloatOptionValue(name string) float64 {
+	return p.floatValue("option", name, p.OptionValue(name),
+		-math.MaxFloat64, math.MaxFloat64)
+}
+
+func (p *Program) FloatOptionValue2(name string, min, max float64) float64 {
+	return p.floatValue("option", name, p.OptionValue(name), min, max)
+}
+
 func (p *Program) RFC3339DatetimeOptionValue(name string) time.Time {
 	return p.rfc3339DatetimeValue("option", name, p.OptionValue(name))
 }
@@ -378,6 +398,19 @@ func (p *Program) BooleanArgumentValue(name string) bool {
 	return p.booleanValue("argument", name, p.ArgumentValue(name))
 }
 
+func (p *Program) IntegerArgumentValue(name string) int64 {
+	return p.integerValue("argument", name, p.ArgumentValue(name),
+		math.MinInt64, math.MaxInt64)
+}
+
+func (p *Program) IntegerArgumentValue2(name string, min, max int64) int64 {
+	return p.integerValue("argument", name, p.ArgumentValue(name), min, max)
+}
+
+func (p *Program) FloatArgumentValue(name string, min, max float64) float64 {
+	return p.floatValue("argument", name, p.ArgumentValue(name), min, max)
+}
+
 func (p *Program) RFC3339DatetimeArgumentValue(name string) time.Time {
 	return p.rfc3339DatetimeValue("argument", name, p.OptionValue(name))
 }
@@ -394,16 +427,62 @@ func (p *Program) booleanValue(typeName, name, value string) bool {
 		return false
 	}
 
-	p.Fatal("invalid value %q for %s %q: must be either %q or %q",
-		value, typeName, name, "true", "false")
+	p.fatalInvalidValue(value, typeName, name, "must be either %q or %q",
+		"true", "false")
 	return false // make the Go compiler happy
+}
+
+func (p *Program) integerValue(typeName, name, value string, min, max int64) int64 {
+	i, err := strconv.ParseInt(value, 10, 64)
+
+	if err != nil {
+		if errors.Is(err, strconv.ErrRange) {
+			p.fatalInvalidValue(value, typeName, name,
+				"must be an integer between %d and %d", min, max)
+		}
+
+		p.fatalInvalidValue(value, typeName, name, "must be a valid integer")
+	}
+
+	if i < min {
+		p.fatalInvalidValue(value, typeName, name,
+			"must be an integer greater or equal to %d", min)
+	}
+
+	if i > max {
+		p.fatalInvalidValue(value, typeName, name,
+			"must be an integer lower or equal to %d", max)
+	}
+
+	return i
+}
+
+func (p *Program) floatValue(typeName, name, value string, min, max float64) float64 {
+	f, err := strconv.ParseFloat(value, 64)
+
+	if err != nil {
+		p.fatalInvalidValue(value, typeName, name,
+			"must be a valid floating point number")
+	}
+
+	if f < min {
+		p.fatalInvalidValue(value, typeName, name,
+			"must be a floating point number greater or equal to %g", min)
+	}
+
+	if f > max {
+		p.fatalInvalidValue(value, typeName, name,
+			"must be a floating point number lower or equal to %g", max)
+	}
+
+	return f
 }
 
 func (p *Program) rfc3339DatetimeValue(typeName, name, value string) time.Time {
 	t, err := time.Parse(time.RFC3339Nano, value)
 	if err != nil {
-		p.Fatal("invalid value %q for %s %q: must be a valid RFC3339 datetime",
-			value, typeName, name)
+		p.fatalInvalidValue(value, typeName, name,
+			"must be a valid RFC3339 datetime")
 	}
 
 	return t
@@ -412,11 +491,15 @@ func (p *Program) rfc3339DatetimeValue(typeName, name, value string) time.Time {
 func (p *Program) uuidValue(typeName, name, value string) uuid.UUID {
 	var id uuid.UUID
 	if err := id.Parse(value); err != nil {
-		p.Fatal("invalid value %q for %s %q: must be a valid UUID",
-			value, typeName, name)
+		p.fatalInvalidValue(value, typeName, name, "must be a valid UUID")
 	}
 
 	return id
+}
+
+func (p *Program) fatalInvalidValue(value, typeName, name, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	p.Fatal("invalid value %q for %s %q: %s", value, typeName, name, msg)
 }
 
 func (p *Program) OptionalArgumentValue(name string) *string {
