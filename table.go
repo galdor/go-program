@@ -70,7 +70,7 @@ func (t *Table) Print() {
 			}
 
 			label := fmt.Sprintf(fmtString, widths[i], strings.ToUpper(c.Label))
-			fmt.Fprintf(os.Stderr, label)
+			fmt.Fprint(os.Stderr, label)
 		}
 
 		fmt.Fprintln(os.Stderr)
